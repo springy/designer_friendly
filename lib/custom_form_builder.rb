@@ -19,62 +19,65 @@ class CustomFormBuilder < ActionView::Helpers::FormBuilder
 
   def render_custom_input(field, name, options)
 
-    self.class.templates ||= {}
+    if name != "hidden_field"
 
-    template_path = "forms/#{self.class.name.underscore}"
+      self.class.templates ||= {}
 
-    @template.capture do
+      template_path = "forms/#{self.class.name.underscore}"
 
-      # Get the options from an instance tag
-      instance_tag = ActionView::Helpers::InstanceTag.new(object_name, field, self, options.delete(:object))
+      @template.capture do
 
-      # Sure this bit can be improved.  This is just to get the name of the
-      # inputs.
-      name_and_id_hash = {}
-      instance_tag.send(:add_default_name_and_id, name_and_id_hash)
-      name_and_id_hash.symbolize_keys!
+        # Get the options from an instance tag
+        instance_tag = ActionView::Helpers::InstanceTag.new(object_name, field, self, options.delete(:object))
 
-
-      locals = {
-        :element => yield,
-        :label => label(field, options[:label]),
-        :label_text => (options[:label] || field.to_s.humanize),
-        :object => instance_tag.object
-      }
-
-      # Merge in the returned id and name
-      locals.merge!(name_and_id_hash)
+        # Sure this bit can be improved.  This is just to get the name of the
+        # inputs.
+        name_and_id_hash = {}
+        instance_tag.send(:add_default_name_and_id, name_and_id_hash)
+        name_and_id_hash.symbolize_keys!
 
 
-      partial = "#{name}"
+        locals = {
+          :element => yield,
+          :label => label(field, options[:label]),
+          :label_text => (options[:label] || field.to_s.humanize),
+          :object => instance_tag.object
+        }
 
-      if has_errors_on?(field)
-        locals.merge!(:error => error_message(field, options))
-        partial = "#{partial}_with_errors"
-      end
+        # Merge in the returned id and name
+        locals.merge!(name_and_id_hash)
 
-      puts "=========== Looking for #{partial}"
 
-      location = self.class.templates[partial]
-      unless location
-        if File.exist?("#{RAILS_ROOT}/app/views/#{template_path}/_#{partial}.html.erb")
-          location = partial
-        else
-          if has_errors_on?(field)
-            location = "general_with_errors"
-          else
-            location = "general"
-          end
+        partial = "#{name}"
+
+        if has_errors_on?(field)
+          locals.merge!(:error => error_message(field, options))
+          partial = "#{partial}_with_errors"
         end
 
-        self.class.templates[partial] = location
+        puts "=========== Looking for #{partial}"
 
+        location = self.class.templates[partial]
+        unless location
+          if File.exist?("#{RAILS_ROOT}/app/views/#{template_path}/_#{partial}.html.erb")
+            location = partial
+          else
+            if has_errors_on?(field)
+              location = "general_with_errors"
+            else
+              location = "general"
+            end
+          end
+
+          self.class.templates[partial] = location
+
+        end
+
+        @template.render :partial => "#{template_path}/#{location}",
+                         :locals => locals
       end
-
-
-
-      @template.render :partial => "#{template_path}/#{location}",
-                       :locals => locals
+    else
+      yield
     end
   end
 
